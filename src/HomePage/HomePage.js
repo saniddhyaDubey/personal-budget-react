@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Axios from "axios";
 import Chart from "chart.js/auto";
+import * as d3 from "d3";
 
 function HomePage() {
   const chartRef = useRef(null);
@@ -23,6 +24,93 @@ function HomePage() {
     ],
     labels: [],
   });
+
+  function createBudgetBarChart(data) {
+    // Set chart dimensions
+    const width = 600;
+    const height = 400;
+    const margin = { top: 30, right: 20, bottom: 50, left: 80 };
+
+    // Remove existing SVG to prevent duplication
+    d3.select("#chart").select("svg").remove();
+
+    // Create an SVG container
+    const svg = d3
+      .select("#chart")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    // Define scales
+    const x = d3
+      .scaleBand()
+      .domain(data.map((d) => d.title))
+      .range([margin.left, width - margin.right])
+      .padding(0.2);
+
+    const y = d3
+      .scaleLinear()
+      .domain([0, d3.max(data, (d) => d.budget)])
+      .nice()
+      .range([height - margin.bottom, margin.top]);
+
+    // Define a color scale for bars (random vibrant colors)
+    const colorScale = d3.scaleOrdinal([
+      "#ff4d4d",
+      "#ffaf40",
+      "#ffe140",
+      "#8cff40",
+      "#40ffaf",
+      "#40cfff",
+      "#8040ff",
+    ]);
+
+    // Create X axis
+    svg
+      .append("g")
+      .attr("transform", `translate(0,${height - margin.bottom})`)
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .attr("transform", "rotate(-15)")
+      .style("text-anchor", "end")
+      .style("font-size", "14px")
+      .style("fill", "#333");
+
+    // Create Y axis
+    svg
+      .append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(d3.axisLeft(y));
+
+    // Add bars with vibrant colors
+    svg
+      .selectAll(".bar")
+      .data(data)
+      .enter()
+      .append("rect")
+      .attr("class", "bar")
+      .attr("x", (d) => x(d.title))
+      .attr("y", (d) => y(d.budget))
+      .attr("width", x.bandwidth())
+      .attr("height", (d) => height - margin.bottom - y(d.budget))
+      .attr("fill", (d, i) => colorScale(i)) // Assigning colors dynamically
+      .attr("rx", 5) // Rounded corners for style
+      .attr("ry", 5);
+
+    // Add labels on top of bars
+    svg
+      .selectAll(".label")
+      .data(data)
+      .enter()
+      .append("text")
+      .attr("x", (d) => x(d.title) + x.bandwidth() / 2)
+      .attr("y", (d) => y(d.budget) - 5)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#222")
+      .attr("font-size", "14px")
+      .attr("font-weight", "bold")
+      .text((d) => d.budget);
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -54,6 +142,15 @@ function HomePage() {
     }
 
     fetchData();
+
+    // Fetch data from backend and create the chart
+    Axios.get("http://localhost:3001/new-budget-endpoint")
+      .then(function (res) {
+        createBudgetBarChart(res.data.myBudget);
+      })
+      .catch(function (error) {
+        console.error("Error fetching budget data:", error);
+      });
   }, []);
 
   useEffect(() => {
@@ -140,6 +237,12 @@ function HomePage() {
           <p>
             <canvas ref={chartRef} width="400" height="400"></canvas>
           </p>
+        </article>
+
+        <article>
+          <h1>D3-Chart</h1>
+          <p>This is the budget bar chart created with D3.</p>
+          <div id="chart"></div>
         </article>
       </div>
     </main>
