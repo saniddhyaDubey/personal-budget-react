@@ -1,6 +1,78 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Axios from "axios";
+import Chart from "chart.js/auto";
 
 function HomePage() {
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null); // Store chart instance to destroy it later
+
+  const [dataSource, setDataSource] = useState({
+    datasets: [
+      {
+        data: [],
+        backgroundColor: [
+          "#ffcd56",
+          "#ff6384",
+          "#36a2eb",
+          "#fd6b19",
+          "#4bc0c0",
+          "#9966ff",
+          "#ff9f40",
+        ],
+      },
+    ],
+    labels: [],
+  });
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await Axios.get("http://localhost:3001/budget");
+
+        const updatedData = {
+          datasets: [
+            {
+              data: res.data.myBudget.map((item) => item.budget),
+              backgroundColor: [
+                "#ffcd56",
+                "#ff6384",
+                "#36a2eb",
+                "#fd6b19",
+                "#4bc0c0",
+                "#9966ff",
+                "#ff9f40",
+              ],
+            },
+          ],
+          labels: res.data.myBudget.map((item) => item.title),
+        };
+
+        setDataSource(updatedData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (chartRef.current) {
+      const ctx = chartRef.current.getContext("2d");
+
+      // Destroy previous chart instance if it exists
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+
+      // Create new Chart instance and store it in ref
+      chartInstance.current = new Chart(ctx, {
+        type: "pie",
+        data: dataSource,
+      });
+    }
+  }, [dataSource]);
+
   return (
     <main className="center" id="main">
       <div className="page-area">
@@ -66,14 +138,7 @@ function HomePage() {
         <article>
           <h1>Chart</h1>
           <p>
-            <canvas id="myChart" width="400" height="400"></canvas>
-          </p>
-        </article>
-
-        <article>
-          <h1>D3-Chart</h1>
-          <p>
-            <div id="chart"></div>
+            <canvas ref={chartRef} width="400" height="400"></canvas>
           </p>
         </article>
       </div>
